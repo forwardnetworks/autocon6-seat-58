@@ -10,10 +10,10 @@
   "forward_server": "fwd.app (26.9.0-18 when last validated)",
   "nos_image": "ceos:4.36.0.1F",
   "netlab": "26.9",
-  "containerlab": "0.79.0",
+  "containerlab": "0.82.0",
   "template_source": {
     "repo": "autocon6-workshop",
-    "commit": "9700896fbe8c382b980412978f3784f0cf385af9",
+    "commit": "fcd4a67d93550ba0ad89f8c1aa0806ed00ea59e6",
     "dirty": false
   }
 }
