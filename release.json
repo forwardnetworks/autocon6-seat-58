@@ -10,11 +10,11 @@
   },
   "forward_server": "fwd.app (26.9.0-18 when last validated)",
   "nos_image": "ceos:4.36.0.1F",
-  "netlab": "26.9",
+  "netlab": "26.10",
   "containerlab": "0.82.0",
   "template_source": {
     "repo": "autocon6-workshop",
-    "commit": "89eacd0b2558904c1ec10f3c6dea37f94e3647b1",
+    "commit": "c068fae372bc182d39f9e1ae00ad6a6f5a6a7354",
     "dirty": false
   }
 }

@@ -27,14 +27,14 @@
      "why": "NAPALM. Every change in this workshop, baseline, candidate and restore, takes the same path, which is what lets Deploy check it. The collector only reads."
     },
     {
-     "q": "netlab starts your lab with --no-config. What does that mean?",
+     "q": "netlab configured your routers when it built them. What configures them after that?",
      "options": [
-      "It starts nothing",
-      "It builds and links the nodes but leaves them unconfigured",
-      "It skips the network links"
+      "netlab again, whenever something changes",
+      "NAPALM, for every change: deploy and restore",
+      "Forward"
      ],
      "answer": 1,
-     "why": "netlab only defines and launches the topology. The configuration comes from the baseline files through NAPALM, which keeps one change path for the whole workshop."
+     "why": "netlab gives the lab its starting point, once. Every change after that goes through NAPALM, one change path, so Deploy can check it. Forward never changes a router: it models them."
     }
    ],
    "after": [

@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from workshop import ai, candidate, github, progress
+from workshop import ai, candidate, github, gitrepo, progress
 from workshop.config import Settings
 from workshop.evidence import Manifest
 
@@ -99,11 +99,8 @@ WORKSHOP_PATHS = ("src/workshop", "examples", "docs/exercises", "requirements", 
 def _updates(root: Path) -> dict[str, Any]:
     """Has the workshop team pushed an update to main that this Codespace doesn't have yet? Only the workshop's own files
     count: the attendee's candidate and branches are never part of it. Display only; a failed fetch just shows nothing."""
-    if subprocess.run(["git", "fetch", "-q", "origin", "main"], cwd=root, capture_output=True, timeout=20, check=False).returncode != 0:
-        raise RuntimeError("git fetch failed")  # keep what was last known rather than flicker the banner
-    out = subprocess.run(["git", "diff", "--name-only", "HEAD", "origin/main", "--", *WORKSHOP_PATHS], cwd=root,
-                         capture_output=True, text=True, timeout=10, check=False)
-    files = [f for f in out.stdout.split() if f]
+    gitrepo.fetch_main(root)  # a failure raises: the caller keeps what was last known rather than flicker the banner
+    files = gitrepo.changed_against_origin_main(root, WORKSHOP_PATHS)
     return {"available": bool(files), "files": files[:8], "count": len(files)}
 
 
@@ -202,23 +199,20 @@ def green_at(prediction: dict[str, Any] | None, prs: list[dict[str, Any]]) -> st
 
 
 def _pull_requests(root: Path) -> list[dict[str, Any]]:
-    out = subprocess.run(
-        ["gh", "pr", "list", "--state", "all", "--limit", "10", "--json", "number,title,state,headRefOid,statusCheckRollup,url,author"],
-        cwd=root, capture_output=True, text=True, timeout=20, check=False,
-    )
-    if out.returncode != 0:  # not "no pull requests": the caller keeps what it last knew
-        raise RuntimeError(f"gh pr list failed: {(out.stderr or '').strip()[:160]}")
+    """This person's newest pull requests and their checks, from GitHub's API. A failure raises: the caller keeps what it last knew."""
     me = os.environ.get("GITHUB_USER", "") if os.environ.get("CODESPACES") else ""
     prs = []
-    for pr in json.loads(out.stdout or "[]"):
+    for pr in github.pull_requests(10):
         # In a Codespace only this person's pull requests are their progress: provisioning leaves a closed "wave" PR on every seat.
-        if me and (pr.get("author") or {}).get("login") != me:
+        if me and pr["author"] != me:
             continue
-        checks = {c.get("name"): (c.get("conclusion") or c.get("status") or "").upper() for c in pr.get("statusCheckRollup") or []}
-        started = next((c.get("startedAt") for c in pr.get("statusCheckRollup") or [] if c.get("name") == "forward/predict" and c.get("startedAt")), "")
-        prs.append({"number": pr["number"], "title": pr["title"], "state": pr["state"], "url": pr["url"], "sha": pr.get("headRefOid", ""),
-                    "predict": checks.get("forward/predict", ""), "advice": checks.get("forward/advice", ""), "predict_since": started})
-    return prs[:5]
+        checks = github.checks(pr["sha"]) if pr["sha"] else {}
+        prs.append({"number": pr["number"], "title": pr["title"], "state": pr["state"], "url": pr["url"], "sha": pr["sha"],
+                    "predict": checks.get("forward/predict", {}).get("state", ""), "advice": checks.get("forward/advice", {}).get("state", ""),
+                    "predict_since": checks.get("forward/predict", {}).get("started", "")})
+        if len(prs) == 5:
+            break
+    return prs
 
 
 class Chats:
@@ -572,13 +566,6 @@ class Board:
         this branch already has one (a second click after an edit just pushes the fix to it)."""
         root = self.settings.repo_root
         path = root / "candidate" / "r4-bgp.eos"
-
-        def run(*cmd: str, what: str) -> str:
-            result = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=90, check=False)
-            if result.returncode != 0:
-                raise RuntimeError(f"{what} did not work: {(result.stderr or result.stdout).strip()[:240] or 'no message'}")
-            return result.stdout.strip()
-
         try:
             cand = candidate.load(path)
         except (candidate.CandidateError, OSError) as exc:
@@ -586,25 +573,22 @@ class Board:
         if not cand.changes:
             raise ValueError("the candidate has no change lines yet: write the change first")
         title = " ".join(message.split())[:72] or "Retire r4's advertisements"
-        branch = run("git", "rev-parse", "--abbrev-ref", "HEAD", what="reading the branch")
-        if branch in ("main", "master", "HEAD"):
-            branch = f"change-{cand.sha256[:7]}"
-            exists = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], cwd=root, capture_output=True, check=False).returncode == 0
-            run("git", "switch", branch, what="switching branch") if exists else run("git", "switch", "-c", branch, what="creating the branch")
-        run("git", "add", "--", "candidate/r4-bgp.eos", what="staging the candidate")
-        staged = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=root, check=False).returncode != 0
-        if staged:
-            run("git", "commit", "-m", title, what="committing")
-        run("git", "push", "-u", "origin", "HEAD", what="pushing the branch")
-        existing = json.loads(run("gh", "pr", "list", "--head", branch, "--state", "open", "--json", "number,url", what="looking for the pull request") or "[]")
-        if existing:
-            return {"branch": branch, "number": existing[0]["number"], "url": existing[0]["url"], "created": False, "pushed": staged}
-        if not staged and run("git", "rev-list", "--count", "origin/main..HEAD", what="comparing with main") == "0":
-            raise ValueError("nothing to open: the candidate file is the same as main's. Change it first")
-        url = run("gh", "pr", "create", "--base", "main", "--head", branch, "--title", title,
-                  "--body", "Opened from the lab page. This pull request changes only candidate/r4-bgp.eos; the forward/predict check judges it.", what="opening the pull request")
-        number = url.rstrip("/").rsplit("/", 1)[-1]
-        return {"branch": branch, "number": int(number) if number.isdigit() else 0, "url": url.splitlines()[-1], "created": True, "pushed": staged}
+        try:
+            branch = gitrepo.branch(root)
+            if branch in ("main", "master", "HEAD"):
+                branch = f"change-{cand.sha256[:7]}"
+                gitrepo.switch(root, branch, create=not gitrepo.has_branch(root, branch))
+            staged = gitrepo.commit_only(root, "candidate/r4-bgp.eos", title)
+            gitrepo.push(root)
+            existing = github.open_pull(branch)
+            if existing:
+                return {"branch": branch, **existing, "created": False, "pushed": staged}
+            if not staged and gitrepo.ahead_of_main(root) == 0:
+                raise ValueError("nothing to open: the candidate file is the same as main's. Change it first")
+            made = github.create_pull(branch, title, "Opened from the lab page. This pull request changes only candidate/r4-bgp.eos; the forward/predict check judges it.")
+        except (gitrepo.GitError, github.GitHubError) as exc:
+            raise RuntimeError(str(exc)) from exc
+        return {"branch": branch, **made, "created": True, "pushed": staged}
 
     def write_candidate(self, retire: list[str]) -> dict[str, Any]:
         """Write candidate/r4-bgp.eos from a checklist: ``no network`` for each chosen r4 prefix."""

@@ -7,8 +7,8 @@ This page is the same list in one place, so you can see where each piece comes f
 
 | Tool | What it does here | Where it comes from |
 |---|---|---|
-| **netlab + containerlab** | builds the four routers, the client and the service as containers | `lab/topology.yml` |
-| **NAPALM** (EOS driver, eAPI) | every config change: open a config session, load the lines, ask the router for its diff, commit or discard | `src/workshop/executor.py` |
+| **netlab + containerlab** | builds the four routers, the client and the service as containers, and gives the routers their starting configuration (with Netmiko) | `lab/topology.yml`, `lab/*.j2` |
+| **NAPALM** (EOS driver, eAPI) | every config change after that: open a config session, load the lines, ask the router for its diff, commit or discard | `src/workshop/executor.py` |
 | **Forward headless collector** | logs in to r1-r4 over SSH, runs show commands, writes one snapshot ZIP | downloaded from your Forward server |
 | **Forward Python SDK** (`forward-sdk`) | uploads snapshots, runs Predict, path search and NQE, asks Forward AI | `pyproject.toml` pins the version |
 | **evaluate.py** | compares Forward's answers with the YAML in `requirements/` and gives PASS / FAIL | `src/workshop/evaluate.py` |
@@ -32,19 +32,19 @@ Exit codes, for every command that gives a verdict: PASS 0, FAIL 1, ERROR 2, INC
 
 Changes nothing.
 
-### `workshop up`: start the lab at its baseline
-Yes, you bring up the lab yourself, with netlab:
-1. **$** `netlab up --no-config -p clab` (in `lab/`). netlab turns `lab/topology.yml` into a containerlab topology and
-   starts it. `--no-config` stops netlab from configuring the routers: there must be one way to change a router, and that is NAPALM.
-   If the lab was stopped, it is brought back with `containerlab deploy --reconfigure` instead.
+### `workshop up`: build the lab and its starting configuration
+Yes, you bring up the lab yourself, with netlab, and netlab configures it:
+1. **$** `netlab up -p clab` (in `lab/`). netlab turns `lab/topology.yml` into a containerlab topology and starts the six
+   containers. Then it renders each router's configuration (its modules: interfaces, routing, BGP and BGP policy, plus the
+   workshop's templates `lab/no-mgmt-default.j2`, `lab/client-in.j2`, `lab/stale-adverts.j2`) into `lab/node_files/`, and
+   sends it to each router over SSH with **Netmiko**. If the lab was stopped, containerlab redeploys the containers and
+   `netlab initial` configures them again.
 2. Waits until all four routers answer on eAPI (what NAPALM uses) and SSH (what the collector uses).
-3. **napalm**, on each of r1-r4: the lines in `lab/baseline/rN.eos`, applied with
-   `load_merge_candidate` → `compare_config` → `commit_config` (or `discard_config` if there is no difference).
-4. **napalm** `show ip bgp summary` on each router until every BGP session is Established.
+3. **napalm** `show ip bgp summary` on each router until every BGP session is Established.
 
-Safe to run again: on a running lab it only re-applies the baseline.
-By hand: `cd lab && netlab up --no-config -p clab`, then look at `lab/baseline/r1.eos`, which `workshop up` applies.
-`workshop down` is `netlab down --cleanup`.
+netlab configures a router only when it builds it. Every change after that goes through NAPALM. Safe to run again: a
+running lab is left as it is. `lab/baseline/rN.eos` is netlab's rendered configuration in one file per router
+(`scripts/build_baseline.py`), for reading. `workshop down` is `netlab down --cleanup`.
 
 ### `workshop baseline`: give Forward a model of the network as it is
 1. **SDK** `client_software.download()`, only if the collector for your server's release isn't there yet (`workshop collector` does just this step).
@@ -87,7 +87,9 @@ The pull request's **forward/predict** check runs exactly this command in GitHub
 
 By hand (exercise 2): `examples/predict_by_hand.py` makes the step 3 SDK calls one at a time.
 
-### `workshop deploy --evidence … --confirm <sha7>`: send exactly what was predicted
+### `workshop deploy --pr N --confirm <sha7>`: send exactly what was predicted
+0. `--pr N`: **$** `gh` finds the merged pull request and downloads the evidence its forward/predict check uploaded.
+   (`--evidence evidence/evidence.json --no-github` deploys a local prediction instead: a rehearsal.)
 1. `--confirm` must be the first 7 characters of the candidate's hash: you say which change you reviewed.
 2. Takes an exclusive lock on the lab, so two deploys can't run at once.
 3. The gates. Any one failing stops the deploy before anything is sent:
@@ -121,12 +123,12 @@ If Forward is slow, run `workshop verify` again: it waits for the upload that is
 
 No prediction and no gate: this is the break-glass path. That is why a new `workshop baseline` must follow.
 
-### `workshop reset --to N [--rebuild]`: start exercise N again
-1. **$** `git stash push --include-untracked` (only if you have changes), `git switch main`, `git pull --ff-only`. Your work is in `git stash list`.
-2. `--rebuild` only: **$** `netlab down --cleanup`.
-3. `workshop up`, then `workshop restore`.
-4. Writes the candidate the exercise starts from (empty; the breaking change for 4; the fixed change for 5).
-5. From exercise 2 on: `workshop baseline`.
+### `workshop reset --to N`: start exercise N again
+1. **$** `git stash push --include-untracked` (only if you have changes), `git switch main`, `git pull --ff-only`, `uv sync --frozen`. Your work is in `git stash list`.
+2. A netlab redeploy: **$** `netlab down --cleanup`, then `workshop up` (netlab builds and configures the lab again). Every
+   router is exactly as netlab first configured it, whatever was changed since.
+3. Writes the candidate the exercise starts from (empty; the breaking change for 4; the fixed change for 5).
+4. From exercise 2 on: `workshop baseline`.
 
 ---
 
