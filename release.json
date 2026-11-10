@@ -14,7 +14,7 @@
   "containerlab": "0.82.0",
   "template_source": {
     "repo": "autocon6-workshop",
-    "commit": "9180edd2002b80ee155de7e0329d6f67f753d97d",
-    "dirty": false
+    "commit": "075ec93448e911f78a8fa549dcfda02a8e9eee19",
+    "dirty": true
   }
 }

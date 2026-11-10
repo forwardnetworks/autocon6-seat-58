@@ -96,3 +96,14 @@ A real class of mistake was caught in a pull request, before deploy, by a test s
 - Another "looks safe" change: retire only `10.20.20.0/24`, the one statement that *isn't* stale. Guess which tests
   fail, then check with `workshop predict`.
 - `cat evidence/evidence.json` for the failed prediction: find the predicted snapshot id and the change set.
+- **Why one query isn't enough.** Run the hygiene query yourself on the *predicted* network of this bad change:
+  ```
+  P=$(jq -r .predicted_snapshot_id evidence/evidence.json)
+  python -c "
+  import os; from forward_sdk import ForwardClient
+  c = ForwardClient.from_env(network_id=os.environ['FORWARD_NETWORK_ID'])
+  print(list(c.nqe.query(open('nqe/stale_bgp_advertisements.nqe').read(), snapshot_id='$P')))"
+  ```
+  Zero rows: no stale advertisements left, so `STALE-CLEARED` passes. If that query were your only check, this change
+  would have been approved and the service would be down. The behavioral tests (`APP-EXISTING`, `PATH-SERVICE`) are what
+  caught it.

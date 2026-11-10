@@ -15,7 +15,7 @@ Find the line that looks like yours. Most fixes are one command. Run `workshop s
 | `workshop baseline` fails on `APP-EXISTING` | The routers were still booting | `workshop up` again, then `workshop baseline` |
 | `workshop baseline` fails on `STALE-KNOWN` with three rows, or says the lab is not at its starting state | Something changed r4 by hand, or a deploy is still on it | `workshop restore`, then `workshop baseline` |
 | The **forward/predict** check is slow | Many people predicting at once | Wait a few minutes. It reruns by itself when you push again |
-| The check says **STALE** | A newer snapshot exists, or the routers changed since your baseline | `workshop baseline`, then push your change again |
+| The check says **STALE** | A newer snapshot than your baseline exists in Forward (a verify, or another baseline), or the baseline was taken for a different lab. The check never reads your routers | `workshop baseline`, then push your change again |
 | The check says **ERROR: changes files outside candidate/** | Your pull request touched other files | Revert them on the branch and push. Only `candidate/r4-bgp.eos` may change |
 | You can't merge | The check isn't green | By design. Fix the candidate until it is |
 | `workshop deploy` refuses | Not merged yet, a red check, a wrong `--confirm`, a newer baseline, or the routers drifted | Read its message. It prints the exact `--confirm` value it expects |

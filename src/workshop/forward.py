@@ -24,10 +24,12 @@ from forward_sdk.errors import (
     ForwardError,
     ForwardPermissionError,
     ForwardRateLimitError,
+    ForwardServerError,
     ForwardTimeoutError,
+    ForwardTransportError,
 )
 
-from workshop import __version__, fingerprint
+from workshop import __version__, fingerprint, show
 from workshop.candidate import Candidate
 from workshop.config import Settings
 from workshop.evaluate import ObserverTimeout
@@ -203,9 +205,27 @@ class Forward:
         return None
 
     def upload(self, zip_path: Path, tag: SnapshotTag, extra: str = "", log=None):
-        snap = self.c.snapshots.upload(zip_path, note=tag.note(extra), process=True, wait=False)
+        return self.wait(self.submit(zip_path, tag, extra, log=log), log=log)
+
+    def submit(self, zip_path: Path, tag: SnapshotTag, extra: str = "", *, log=None, sleep=time.sleep) -> str:
+        """Upload the ZIP (processing starts on Forward's side) and return the new snapshot's id. A transient failure
+        (network, 5xx, rate limit) is retried twice; anything else (auth, a bad request) is reported at once."""
+        transient = (ForwardTransportError, ForwardServerError, ForwardRateLimitError)
+        for attempt in range(3):
+            try:
+                return str(self.c.snapshots.upload(zip_path, note=tag.note(extra), process=True, wait=False).id)
+            except transient as exc:
+                if attempt == 2:
+                    raise
+                if log:
+                    log(f"  the upload did not get through ({type(exc).__name__}); trying again in {10 * (attempt + 1)} s")
+                sleep(10 * (attempt + 1))
+        raise AssertionError("unreachable")
+
+    def wait(self, snapshot_id: str, *, log=None, timeout: float = 900):
+        """Wait for Forward to finish processing. On a timeout Forward keeps going: the caller decides what to say."""
         watch = ProcessingWatch(self.c, log, "processing your snapshot into a model") if log else None
-        return self.c.snapshots.wait_until_processed(snap.id, poll_interval=3, timeout=900, on_poll=watch)
+        return self.c.snapshots.wait_until_processed(snapshot_id, poll_interval=3, timeout=timeout, on_poll=watch)
 
     def device_names(self, snapshot_id: str) -> set[str]:
         return {d.name for d in self.c.devices.list(snapshot_id=snapshot_id)}
@@ -233,8 +253,11 @@ class Forward:
                 if str(snap.state) == "PROCESSED" and str(snap.parent_snapshot_id) == str(baseline_id):
                     return Prediction(str(info.id), str(snap.id), str(snap.parent_snapshot_id), True)
             handle.delete()  # a half-finished attempt; start clean
+        show.sdk(log, f'change_sets.create("{name}", snapshot_id="{baseline_id}")   a change set on top of your baseline')
         handle = self.c.change_sets.create(name, snapshot_id=baseline_id, description=description, tags=["autocon6"])
+        show.sdk(log, f'set_commands("{candidate.device}", <{len(candidate.lines)} lines, sha256 {candidate.sha256[:7]}>)   the exact bytes deploy will send')
         handle.set_commands(candidate.device, candidate.text)
+        show.sdk(log, "commit(…) · predict(…)   Forward builds the network that would result, as a new snapshot")
         handle.commit(f"{name} {candidate.sha256[:12]}")
         started = handle.predict(f"{name} {candidate.sha256[:12]}")  # what predict_and_wait does, with the status shown while it waits
         if not started.id:

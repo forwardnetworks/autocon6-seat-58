@@ -43,12 +43,50 @@ that the change request is actually done?
 ```
 workshop baseline
 ```
-The headless collector reads the four routers into a snapshot, Forward processes it into a model, and the
-baseline tests run against that model. Every line should say **PASS**.
+Three different things happen, in order, and the output shows each one:
+
+1. **Collect.** Forward's headless collector (a program in this Codespace, not on Forward's servers) logs in to the four
+   routers over SSH, runs `show` commands and writes everything into one snapshot ZIP. `workshop` also fingerprints the
+   running configs over NAPALM and refuses the snapshot if they differ from what the collector read.
+2. **Model.** The ZIP is uploaded to your Forward network with the Python SDK (`snapshots.upload`, then
+   `wait_until_processed`). Forward turns it into a model: every route, ACL and forwarding decision. The upload carries a
+   note like `autocon6:baseline lab=… fp=…`; later steps read it to know which snapshot is your baseline.
+3. **Judge.** Forward doesn't know your requirements. `workshop` asks Forward questions about the model (a path search for
+   each flow, an NQE query for the rest) and `src/workshop/evaluate.py` compares each answer with what the YAML says it must be.
+
+Every line should say **PASS**.
 
 Read the output top to bottom. It starts with what Forward modelled (how many devices, running what). Then each requirement
 is a block: its **name and meaning**, **must be** (what had to be true), and **Forward saw** (what Forward's model shows,
 with the path traffic takes where there is one). It ends with **What this means** and the next step.
+
+### Open the box: the snapshot (5 min, best done while the upload waits)
+
+```
+S=$WORKSHOP_STATE_DIR/$WORKSHOP_LAB_ID      # your lab's working folder
+jq '.devices' $S/data_sources.json          # what the collector was told to read (the passwords are in another part of this file)
+ls -la $S/snapshots/                         # one ZIP per collection
+Z=$(ls -t $S/snapshots/baseline_*.zip | head -1)
+unzip -l $Z | head -20                       # one folder of command output per router
+unzip -p $Z 'r4,configuration.txt' | sed -n '/router bgp/,/^!/p'   # r4's BGP, as Forward received it
+tail -5 $S/collect-baseline.log
+```
+
+That ZIP is the whole input to Forward's model. Nothing about your network reaches Forward any other way.
+
+Now ask Forward one question yourself, with the same SDK and the same query the workshop uses:
+```
+python - <<'PY'
+import os
+from forward_sdk import ForwardClient
+c = ForwardClient.from_env(network_id=os.environ["FORWARD_NETWORK_ID"])
+s = c.snapshots.latest_processed(include_predicted=False)
+print(s.id, s.note)
+for row in c.nqe.query(open("nqe/stale_bgp_advertisements.nqe").read(), snapshot_id=str(s.id)):
+    print(dict(row))
+PY
+```
+That is the query behind `STALE-KNOWN`. Its rows are Forward's answer; `evaluate.py` is what turned them into PASS.
 
 `STALE-KNOWN` is the one to read. It lists r4 `network` statements whose prefixes r4 has no route for. These are
 stale advertisements, and retiring them is today's change request.
