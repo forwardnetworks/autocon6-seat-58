@@ -15,6 +15,9 @@ uv sync --frozen
 # netlab (pinned in pyproject.toml, with the Netmiko it configures the routers with) is installed by uv sync above, into the
 # same environment as the workshop: `workshop up` calls it in-process, and `netlab status` / `netlab connect r1` work in the terminal.
 
+step "sshpass (netlab checks the routers' SSH with it before it configures them)"
+command -v sshpass >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq sshpass >/dev/null; }
+
 step "containerlab ${CONTAINERLAB_VERSION}"
 if ! containerlab version 2>/dev/null | grep -q "version: ${CONTAINERLAB_VERSION}"; then
   bash -c "$(curl -sL https://get.containerlab.dev)" -- -v "${CONTAINERLAB_VERSION}"

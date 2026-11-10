@@ -127,9 +127,25 @@ def up(settings: Settings, log) -> None:
         netlab(settings, log, "down", "--cleanup")
         netlab(settings, log, "up", "-p", "clab")
     else:
-        log("lab containers are running (their configuration is left as it is: `workshop restore` or `workshop reset` puts it back)")
+        log("lab containers are running")
+        wait_ssh(settings, log)
+        if not configured(settings):
+            # a bring-up that stopped after the containers started (netlab up was interrupted, or failed before configuring)
+            log("  the routers have no configuration yet: netlab finishes its bring-up (netlab initial) ...")
+            netlab(settings, log, "initial")
+        else:
+            log("  and configured (their configuration is left as it is: `workshop restore` or `workshop reset` puts it back)")
     wait_ssh(settings, log)
     wait_bgp(settings, log)
+
+
+def configured(settings: Settings) -> bool:
+    """Has netlab configured the lab? r1 with BGP neighbors is the tell: a fresh cEOS has no BGP at all."""
+    try:
+        summary = executor.show_json(settings, mgmt_ips(settings)["r1"], "show ip bgp summary")
+    except executor.DeployError:
+        return False
+    return bool((summary.get("vrfs", {}).get("default", {}) or {}).get("peers"))
 
 
 def netlab_has_netmiko() -> bool:

@@ -197,8 +197,8 @@ def _doctor(settings: config.Settings, args) -> int:
         row(networks == [settings.network_id], "seat token sees exactly its own network", f"{networks}")
     except Exception as exc:  # noqa: BLE001 - doctor reports, it does not crash
         row(False, "Forward reachable", f"{type(exc).__name__}: {str(exc)[:160]}")
-    for tool in ("docker", "containerlab"):
-        row(shutil.which(tool) is not None, f"{tool} installed")
+    for tool, why in (("docker", ""), ("containerlab", ""), ("sshpass", "netlab checks the routers' SSH with it before configuring them")):
+        row(shutil.which(tool) is not None, f"{tool} installed", "" if shutil.which(tool) else why)
     row(lab.netlab_has_netmiko(), "netlab can configure the routers (Netmiko installed beside it)",
         "" if lab.netlab_has_netmiko() else "run: uv sync --frozen")
     collector = sorted(settings.collector_home.glob("*/fwd/bin/fwd-headless")) if settings.collector_home.exists() else []
@@ -552,10 +552,20 @@ def _snapshot_for(settings: config.Settings, which: str, evidence: str) -> str:
     if which.isdigit():
         return which
     if which == "baseline":
-        path = settings.state_dir / "baseline.json"
-        if path.is_file():
-            return str(json.loads(path.read_text())["snapshot"])
-        raise LookupError("no baseline yet: run workshop baseline")
+        # the newest of: the checked baseline (baseline.json), and a baseline uploaded and processed but not checked yet
+        # (`workshop baseline wait` done): you can explore Forward's model before you judge it
+        found = []
+        for name, key in (("baseline.json", "snapshot"), ("steps/upload-baseline.json", "snapshot")):
+            path = settings.state_dir / name
+            try:
+                data = json.loads(path.read_text())
+            except (OSError, ValueError):
+                continue
+            if name == "baseline.json" or data.get("processed"):
+                found.append((path.stat().st_mtime, str(data[key])))
+        if found:
+            return max(found)[1]
+        raise LookupError("no baseline in Forward yet: run `workshop baseline collect`, `upload` and `wait` first")
     if which == "predicted":
         path = Path(evidence)
         if path.is_file() and Manifest.read(path).predicted_snapshot_id:
