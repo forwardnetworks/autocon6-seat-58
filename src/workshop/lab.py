@@ -172,7 +172,8 @@ def wait_ssh(settings: Settings, log, timeout: float = 600) -> None:
             if time.monotonic() > deadline:
                 detail = "; ".join(f"{d}: {last_error.get(d, '?')}" for d in sorted(pending))
                 raise LabError(f"routers not reachable over eAPI and SSH after {timeout:.0f}s -- {detail}")
-            beat.beat(f"{', '.join(sorted(pending))} not answering yet")
+            up_now = len(ips) - len(pending)
+            beat.beat(f"{up_now} of {len(ips)} routers answering ({100 * up_now // len(ips)}%); waiting for {', '.join(sorted(pending))}")
             time.sleep(5)
     log("  all four routers answer eAPI and SSH")
 
@@ -181,7 +182,7 @@ def wait_bgp(settings: Settings, log, timeout: float = 300) -> None:
     ips, deadline = mgmt_ips(settings), time.monotonic() + timeout
     beat = show.Heartbeat(log, "waiting for BGP to come up")
     while True:
-        down = {}
+        down, established, sessions = {}, 0, 0
         for device in fingerprint.ROUTERS:
             try:
                 summary = executor.show_json(settings, ips[device], "show ip bgp summary")
@@ -190,6 +191,8 @@ def wait_bgp(settings: Settings, log, timeout: float = 300) -> None:
                 continue
             peers = (summary.get("vrfs", {}).get("default", {}) or {}).get("peers", {}) or {}
             not_up = [peer for peer, info in peers.items() if info.get("peerState") != "Established"]
+            sessions += max(len(peers), 2)
+            established += len(peers) - len(not_up)
             if len(peers) < 2 or not_up:
                 down[device] = not_up or ["fewer than 2 peers"]
         if not down:
@@ -197,7 +200,8 @@ def wait_bgp(settings: Settings, log, timeout: float = 300) -> None:
             return
         if time.monotonic() > deadline:
             raise LabError(f"BGP not established after {timeout:.0f}s: {down}")
-        beat.beat(f"sessions not Established yet on {', '.join(sorted(down))}")
+        total = max(sessions, 2 * len(fingerprint.ROUTERS))
+        beat.beat(f"{established} of {total} BGP sessions Established ({100 * established // total}%); still waiting on {', '.join(sorted(down))}")
         time.sleep(5)
 
 

@@ -41,8 +41,27 @@ def log(message: str) -> None:
     print(message, flush=True)
 
 
+STEPS = {
+    "baseline": ["collect", "upload", "wait", "check"],
+    "predict": ["changeset", "run", "check"],
+    "deploy": ["gates", "render", "apply", "readback"],
+    "verify": ["probe", "collect", "upload", "wait", "compare"],
+}
+
+
+def step_line(stage: str, step: str) -> str:
+    """Where this step sits in its stage: 'Baseline · step 2 of 4:  collect ✓ → upload ◀ → wait → check'."""
+    order = STEPS[stage]
+    i = order.index(step)
+    chain = " → ".join(f"{s} ✓" if n < i else f"{s} ◀" if n == i else s for n, s in enumerate(order))
+    return f"{stage.capitalize()} · step {i + 1} of {len(order)}:  {chain}"
+
+
 def banner(settings: config.Settings, action: str) -> None:
     log(f"== workshop {action} -- lab {settings.lab_id}, Forward network {settings.network_id}")
+    stage, _, step = action.partition(" ")
+    if step in STEPS.get(stage, []):
+        log(step_line(stage, step))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -328,7 +347,7 @@ def _predict(settings: config.Settings, args) -> int:
     from workshop import evidence, predict
     from workshop.forward import Forward
 
-    banner(settings, "predict")
+    banner(settings, "predict" + (f" {args.step}" if getattr(args, "step", None) else ""))
     root = settings.repo_root
     git = {k: v for k, v in {"pr": args.pr, "head_sha": args.head_sha, "base_sha": args.base_sha,
                              "repo": os.environ.get("GITHUB_REPOSITORY"), "run_id": os.environ.get("GITHUB_RUN_ID"),
@@ -482,7 +501,7 @@ def _verify(settings: config.Settings, args) -> int:
     from workshop.evidence import Manifest
     from workshop.forward import Forward
 
-    banner(settings, "verify")
+    banner(settings, "verify" + (f" {args.step}" if getattr(args, "step", None) else ""))
     evidence = args.evidence
     if not evidence:
         deployed = settings.state_dir / "deploy.json"

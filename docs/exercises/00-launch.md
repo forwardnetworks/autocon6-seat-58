@@ -31,6 +31,8 @@ with it?" Today that second question gets its own stage in the pipeline, and it 
      ACL, r4's stale advertisements) from the templates in `lab/*.j2`. That is the network's starting point.
    - After this, netlab never touches a router again. Every change (your deploy, a restore) goes through **NAPALM**:
      one way a change reaches a router, so Deploy can check it.
+   - netlab prints `Warning in ansible: Cannot determine Ansible version`. That's expected: the workshop doesn't use
+     Ansible, netlab just checks for it.
 
    It takes 3 to 10 minutes on a new Codespace (about 4 after a restart) and the machine will be busy. Leave it running and read on.
 4. **Look at what netlab built**, with netlab itself (from the `lab/` folder: `cd lab`):
