@@ -74,8 +74,8 @@ before. Everything here is a question to Forward through the Python SDK; each co
 ```
 workshop data inventory
 ```
-Four routers and their OS. The client and service are Linux containers that weren't collected, so Forward models them as
-hosts on r1's and r4's subnets.
+Four routers and their OS. The client and service are small Linux containers the collector doesn't log in to: Forward
+knows them as the subnets on r1's and r4's client- and service-facing interfaces.
 
 **What does each router know?**
 ```
@@ -83,7 +83,8 @@ workshop data routes --prefix 10.20.20.0/24     # the service's prefix, on every
 workshop data routes --device r1                 # everything r1 knows
 ```
 Each row is a route as Forward modelled it: the prefix, the protocol, the next hop and interface. r4 has it connected;
-r2 and r3 learned it from r4 over BGP; r1 learned it from both and prefers r2 (local preference 200).
+r2 and r3 learned it from r4 over BGP; r1 learned it over BGP too and uses r2 as the next hop (local preference 200
+makes the r2 path the primary one).
 
 **Where does a packet actually go?**
 ```

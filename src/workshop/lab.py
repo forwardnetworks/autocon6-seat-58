@@ -84,7 +84,7 @@ def netlab(settings: Settings, log, *args: str) -> None:
 
     command = {"up": up_.run, "down": down.run, "initial": initial.run}[args[0]]
     show.netlab(log, list(args))
-    beat = show.Heartbeat(log, f"netlab {args[0]}: it is quiet while the routers boot", every=30)
+    beat = show.Heartbeat(log, f"netlab {args[0]}: it is quiet while the routers boot", every=30, usual=300, give_up=720)
 
     class Tee(io.TextIOBase):  # pass netlab's output straight through, and note that something was said
         def __init__(self, out):
@@ -158,7 +158,7 @@ def netlab_has_netmiko() -> bool:
 def wait_ssh(settings: Settings, log, timeout: float = 600) -> None:
     ips, deadline = mgmt_ips(settings), time.monotonic() + timeout
     pending, last_error = set(ips), {}
-    beat = show.Heartbeat(log, "waiting for the routers to boot (cEOS takes 1 to 4 minutes)")
+    beat = show.Heartbeat(log, "waiting for the routers to boot (cEOS takes 1 to 4 minutes)", usual=240, give_up=540)
     while pending:
         for device in sorted(pending):
             try:
@@ -180,7 +180,7 @@ def wait_ssh(settings: Settings, log, timeout: float = 600) -> None:
 
 def wait_bgp(settings: Settings, log, timeout: float = 300) -> None:
     ips, deadline = mgmt_ips(settings), time.monotonic() + timeout
-    beat = show.Heartbeat(log, "waiting for BGP to come up")
+    beat = show.Heartbeat(log, "waiting for BGP to come up", usual=120, give_up=240)
     while True:
         down, established, sessions = {}, 0, 0
         for device in fingerprint.ROUTERS:

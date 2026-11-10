@@ -94,6 +94,6 @@ def run(settings: Settings, to: int, log) -> None:
             raise ResetError(f"the fresh baseline is {status}, not PASS: run `workshop reset --to {to}` again, or ask a proctor")
     log("")
     if to == 5:
-        log("  A fresh baseline makes any earlier prediction stale. To deploy this change now: `workshop predict`, then")
-        log("  `workshop deploy --evidence evidence/evidence.json --confirm <sha7> --no-github` (it prints the sha7 to use).")
+        log("  A fresh baseline makes any earlier prediction stale. To deploy this change now: the predict steps, then")
+        log("  `workshop deploy gates|render|apply|readback --evidence evidence/evidence.json --confirm <sha7> --no-github` (check prints the sha7).")
     log(f"Ready: you are at the start of exercise {to}. Open docs/exercises/ for it, or the Your lab page.")

@@ -84,13 +84,13 @@ def prepare(settings: Settings, inputs: Inputs, log=None) -> Manifest:
             show.sdk(log, "snapshots.latest_processed(include_predicted=False)   the baseline to predict against")
             baseline = fwd.latest_baseline()
             if baseline is None:
-                return _stop(m, "STALE", "Forward has no baseline for this lab yet. Run `workshop baseline` in your Codespace.")
+                return _stop(m, "STALE", "Forward has no baseline for this lab yet. Run the baseline steps in your Codespace (`workshop baseline collect` first).")
             m.baseline_snapshot_id, m.baseline_processed_at = str(baseline.id), str(baseline.processed_at or "")
             tag = SnapshotTag.parse(baseline.note)
             if tag is None or tag.lab != settings.lab_id:
-                return _stop(m, "STALE", f"The newest snapshot ({baseline.id}) is not a baseline collected from lab {settings.lab_id}. Run `workshop baseline`.")
+                return _stop(m, "STALE", f"The newest snapshot ({baseline.id}) is not a baseline collected from lab {settings.lab_id}. Run the baseline steps (`workshop baseline collect` first).")
             if tag.kind != "baseline":
-                return _stop(m, "STALE", f"The newest snapshot ({baseline.id}) is a post-change collection; the network has already changed. Run `workshop baseline` before predicting a new change.")
+                return _stop(m, "STALE", f"The newest snapshot ({baseline.id}) is a post-change collection; the network has already changed. Run the baseline steps (`workshop baseline collect` first) before predicting a new change.")
             m.baseline_fingerprint = tag.fp
             show.sdk(log, 'devices.file("rN", "configuration.txt") for r1-r4   Forward\'s copy of the configs, hashed against the note')
             if fwd.fingerprint(str(baseline.id)) != tag.fp:
@@ -100,7 +100,7 @@ def prepare(settings: Settings, inputs: Inputs, log=None) -> Manifest:
             m.baseline_status = base_report.status.value
             if base_report.status is not Status.PASS:
                 failing = ", ".join(r.id for r in base_report.results if r.status is not Status.PASS)
-                return _stop(m, "STALE", f"The baseline does not meet the baseline requirements ({failing}); the lab is not at its starting state. Run `workshop restore`, then `workshop baseline`.")
+                return _stop(m, "STALE", f"The baseline does not meet the baseline requirements ({failing}); the lab is not at its starting state. Run `workshop restore`, then the baseline steps (`workshop baseline collect` first).")
             if log:
                 log(f"  ✓ baseline {baseline.id} is this lab's, Forward holds what was collected, and it meets the baseline requirements")
             name = change_set_name(settings.lab_id, inputs.git, cand.sha256)

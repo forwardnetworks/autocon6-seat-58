@@ -1,14 +1,21 @@
-"""The ``workshop`` command: one short command per step of the change loop.
+"""The ``workshop`` command: one step at a time through the change loop. Each step does one thing, prints the real call it
+makes, and ends with its evidence and the next step.
 
-    workshop doctor      is everything ready?
-    workshop up          start the lab and apply the baseline
-    workshop baseline    collect the network and give Forward a baseline
-    workshop predict     (the PR check runs this) predict a candidate and judge it
-    workshop deploy      deploy the approved, predicted change
-    workshop verify      collect again and compare with the prediction
-    workshop restore     put r4 back to the baseline (instructor recovery)
-    workshop status      where this lab is in the loop
-    workshop probe       test the real flows from the client (8080, 8443, 2222) right now
+    workshop doctor                                      is everything ready?
+    workshop up                                          netlab builds and configures the lab
+    workshop baseline collect | upload | wait | check    Forward gets a model of the network, then the requirements are checked
+    workshop predict changeset | run | check             (the PR check runs these three) predict a change and judge it
+    workshop deploy gates | render | apply | readback    send exactly what was predicted, with NAPALM
+    workshop verify probe | collect | upload | wait | compare    did the network do what Forward predicted?
+
+Looking inside Forward's model:
+
+    workshop data inventory | routes | vulns | diff      what Forward knows
+    workshop path [--port N] [--compare predicted]        one flow, hop by hop
+    workshop nqe <file or query>                         ask Forward anything
+    workshop probe                                       real packets from the client, right now
+
+Recovery: workshop restore (r4 back to its baseline, over NAPALM) · workshop reset --to N (a netlab redeploy) · workshop status
 
 Forward AI advisers (optional; they advise, Predict and the requirements decide):
 
@@ -762,7 +769,7 @@ def _agent(settings: config.Settings, args) -> int:
         log(f"{args.candidate} now holds a change Predict passed. The agent stops here -- a person decides:")
         log(f"  git diff {args.candidate}      # read it")
         log("  commit it on a branch and open a pull request; the forward/predict check judges it again")
-        log("  after review and merge: workshop deploy --pr <N> --confirm <sha7>")
+        log("  after review and merge: workshop deploy gates --pr <N> --confirm <sha7>, then render, apply, readback")
     else:
         log("no passing change within the budget. Read evidence/agent/agent.json, then take it from here yourself.")
     return EXIT.get(outcome.status, EXIT["ERROR"])

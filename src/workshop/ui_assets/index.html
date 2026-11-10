@@ -552,7 +552,9 @@ function renderGuide(s, key) {
   }
   if (key === "deploy") {
     extra = `<div class="gsec"><h3>Deploy</h3><div class="muted">Candidate hash to type: look at the <b>Change</b> step or the green check. It starts with <code>${esc((s.candidate?.sha256 || "").slice(0, 2))}…</code></div>
-      <div class="runrow"><input type="text" id="dep-pr" size="8" placeholder="PR number" inputmode="numeric"> <input type="text" id="dep-sha" size="12" placeholder="first 7 of the hash" maxlength="7" autocomplete="off" spellcheck="false"> <button id="dep-go" ${s.job && !s.job.done ? "disabled" : ""}>Deploy</button></div>
+      <div class="runrow"><input type="text" id="dep-pr" size="8" placeholder="PR number" inputmode="numeric"> <input type="text" id="dep-sha" size="12" placeholder="first 7 of the hash" maxlength="7" autocomplete="off" spellcheck="false"> </div>
+      <div class="runrow">${[["deploy gates", "1. Gates"], ["deploy render", "2. Render"], ["deploy apply", "3. Apply"], ["deploy readback", "4. Read back"]].map(([st, lb]) => `<button class="dep-step" data-step="${st}" ${s.job && !s.job.done ? "disabled" : ""}>${lb}</button>`).join(" ")}</div>
+      <div class="muted">Gates checks everything and sends nothing. Render shows the change in Forward and on r4, side by side (a dry run). Apply sends it. Read back confirms it on r4.</div>
       <div class="note muted">Deploy refuses unless every check passes: your pull request is merged and green, the baseline is current, and no router has drifted.</div></div>`;
   }
   if (key === "predict") {
@@ -619,8 +621,7 @@ function renderGuide(s, key) {
       : `Updated <b>PR #${esc(r.number)}</b> (branch <code>${esc(r.branch)}</code>)${r.pushed ? " with your new commit" : ": nothing new to push"}: <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a>`;
     guideSig = ""; renderGuide(state, key); refresh();
   };
-  const d = $("dep-go");
-  if (d) d.onclick = () => runStep({ step: "deploy", pr: $("dep-pr").value.trim(), confirm: $("dep-sha").value.trim() });
+  document.querySelectorAll(".dep-step").forEach((b) => { b.onclick = () => runStep({ step: b.dataset.step, pr: $("dep-pr").value.trim(), confirm: $("dep-sha").value.trim() }); });
   showOut();
   loadArts(key);
   loadData(key, g);
@@ -702,7 +703,7 @@ function showMsg(text) {
 function jobBelongsHere() {
   // A job's output is shown on the step that runs it (and for a catch-up, wherever it was started), never under an unrelated step.
   if (!job || job.home === "lane") return true;
-  const here = ((guide && guide.steps[currentKey()] || {}).run || []).map((r) => r.step).concat(currentKey() === "deploy" ? ["deploy"] : []);
+  const here = ((guide && guide.steps[currentKey()] || {}).run || []).map((r) => r.step).concat(currentKey() === "deploy" ? ["deploy", "deploy gates", "deploy render", "deploy apply", "deploy readback"] : []);
   return String(job.step || "").startsWith("catch-up") || String(job.cmd || "").includes("catch-up") || here.includes(job.step);
 }
 

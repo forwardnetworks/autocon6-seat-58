@@ -61,7 +61,7 @@ def gates(settings: Settings, m: Manifest, fwd: Forward, *, check_github: bool =
         raise Refused("STALE", f"a newer snapshot ({getattr(latest, 'id', None)}) exists than the one predicted against ({m.baseline_snapshot_id}); re-run the check")
     live = fingerprint.of(lab.live_configs(settings))
     if live != m.baseline_fingerprint:
-        raise Refused("STALE", "the routers' configs are not what was collected for the prediction; run `workshop baseline` and re-run the check")
+        raise Refused("STALE", "the routers' configs are not what was collected for the prediction; run the baseline steps (`workshop baseline collect` first) and re-run the check")
 
 
 def GATES_PASSED(m: Manifest, check_github: bool) -> list[str]:
@@ -139,7 +139,7 @@ def run(settings: Settings, evidence: Path, confirm: str, log: Callable[[str], N
     log("")
     approved = "the pull request merged and its check green" if check_github and Manifest.read(evidence).git.get("pr") else "no pull request was involved (a local rehearsal)"
     log(f"What this means: the gates allowed it (evidence PASS, {approved}, the baseline still current, no router edited by hand since),")
-    log("and r4 now holds exactly what Predict judged. Whether the real network behaves as predicted is what `workshop verify` checks next.")
+    log("and r4 now holds exactly what Predict judged. Whether the real network behaves as predicted is what the verify steps check next (`workshop verify probe` first).")
     return record
 
 

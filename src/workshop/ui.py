@@ -42,7 +42,12 @@ SHA7 = re.compile(r"^[0-9a-f]{7}$")
 # The prefixes r4 advertises; the change builder may only retire these.
 R4_PREFIXES = ("10.20.20.0/24", "10.20.30.0/24", "10.20.40.0/24")
 # What the page may start. Anything else (down, collector, ask...) stays a typed command.
-STEPS = ("doctor", "up", "baseline", "probe", "predict", "explain", "propose", "matrix", "agent", "deploy", "verify", "restore", "status")
+STEPS = ("doctor", "up", "baseline", "probe", "predict", "explain", "propose", "matrix", "agent", "deploy", "verify", "restore", "status",
+         # one step at a time: what the exercises teach
+         "baseline collect", "baseline upload", "baseline wait", "baseline check",
+         "predict changeset", "predict run", "predict check",
+         "deploy gates", "deploy render", "deploy apply", "deploy readback",
+         "verify probe", "verify collect", "verify upload", "verify wait", "verify compare")
 MAX_ARTIFACT = 60_000
 # What each step uses and produces, shown on the page so people see exactly what they are deploying. Paths are
 # repo-relative; "state:" paths live in the seat's state folder; "forward:<which>" is Forward's raw answers.
@@ -289,7 +294,16 @@ class Jobs:
     def argv(self, step: str, params: dict[str, Any]) -> list[str]:
         if step not in STEPS:
             raise ValueError(f"'{step}' is not a step this page can start")
-        out = [step]
+        out = step.split()
+        stage, sub_step = out[0], (out[1] if len(out) > 1 else "")
+        if stage == "deploy" and sub_step == "readback":
+            return out
+        if stage == "deploy" and sub_step == "render":
+            pr = str(params.get("pr", "")).strip()
+            if not pr.isdigit() or not 0 < int(pr) < 100000:
+                raise ValueError("enter the number of your merged pull request")
+            return [*out, "--pr", pr]
+        step = stage
         if step == "predict":
             out += ["--candidate", "candidate/r4-bgp.eos", "--out", str(self.evidence.parent)]
             if params.get("requirements") == "mine":
@@ -656,7 +670,7 @@ def _stages(lab, base, cand, m, prs, deployed, verified) -> list[dict[str, str]]
     else:
         out.append(stage("approve", "Approve", "todo", "no pull request yet", "open a pull request"))
     out.append(stage("deploy", "Deploy", "done" if deployed else "todo",
-                     f"applied {len(deployed.get('lines', [])) - 2} change(s)" if deployed else "not deployed", "workshop deploy --pr N --confirm <sha7>"))
+                     f"applied {len(deployed.get('lines', [])) - 2} change(s)" if deployed else "not deployed", "workshop deploy gates --pr N --confirm <sha7>"))
     if verified:
         outcome = verified.get("outcome", "")
         out.append(stage("verify", "Verify", "done" if outcome == "MATCH" else "failed", outcome, "workshop verify"))

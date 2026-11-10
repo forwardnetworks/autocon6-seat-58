@@ -63,10 +63,12 @@ class Heartbeat:
     seconds: what is being waited for and for how long. ``quiet()`` returns that line from a thread when nothing else has
     printed for a while (for a subprocess whose own output stalls)."""
 
-    def __init__(self, log: Log, what: str, *, every: float = 20.0, clock=None) -> None:
+    def __init__(self, log: Log, what: str, *, every: float = 20.0, usual: float = 0, give_up: float = 0, clock=None) -> None:
+        """``usual``: past this many seconds, say it is taking longer than usual (not "nothing is stuck"); ``give_up``: past
+        this, say when to ask for help. A heartbeat must never promise more than it knows."""
         import time
 
-        self.log, self.what, self.every = log, what, every
+        self.log, self.what, self.every, self.usual, self.give_up = log, what, every, usual, give_up
         self.clock = clock or time.monotonic
         self.start = self.last = self.clock()
 
@@ -75,7 +77,14 @@ class Heartbeat:
         if self.log is None or now - self.last < self.every:
             return
         self.last = now
-        self.log(f"  … still {self.what} ({now - self.start:.0f} s){': ' + detail if detail else ''}. Nothing is stuck.")
+        secs = now - self.start
+        if self.give_up and secs > self.give_up:
+            tail = "This is much longer than usual. If nothing changes in the next few minutes, raise a hand (or run `workshop doctor` in a second terminal)."
+        elif self.usual and secs > self.usual:
+            tail = f"Longer than usual (normally under {self.usual / 60:.0f} minutes): a busy Codespace is slower. Still working."
+        else:
+            tail = "Nothing is stuck."
+        self.log(f"  … still {self.what} ({secs:.0f} s){': ' + detail if detail else ''}. {tail}")
 
     def heard(self) -> None:
         """Something else just printed: the next beat can wait a full interval."""
