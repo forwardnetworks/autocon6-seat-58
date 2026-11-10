@@ -33,7 +33,13 @@ with it?" Today that second question gets its own stage in the pipeline, and it 
      one way a change reaches a router, so Deploy can check it.
 
    It takes 3 to 10 minutes on a new Codespace (about 4 after a restart) and the machine will be busy. Leave it running and read on.
-4. **Look at what netlab built.** In the terminal, `containerlab inspect --all` lists your lab, `autocon6`, with six nodes
+4. **Look at what netlab built**, with netlab itself (from the `lab/` folder: `cd lab`):
+   ```
+   netlab status          # the lab, its six nodes and their state
+   netlab inspect --node r4 --format yaml | head -40   # everything netlab knows about r4: interfaces, BGP, its custom config
+   netlab connect r1      # a CLI on r1 (then: show ip bgp summary, and exit)
+   ```
+   `containerlab inspect --all` lists the same lab, `autocon6`, with six nodes
    (and the **Containerlab** icon in the left activity bar shows the same tree: if it stays blank, the terminal is the reliable way):
    - **r1, r2, r3, r4**: Arista cEOS routers in the diamond (AS 65001 to 65004)
    - **client** and **service**: small Linux containers. The client sits behind r1 and the service behind r4, and the
@@ -45,11 +51,11 @@ with it?" Today that second question gets its own stage in the pipeline, and it 
    ```
    show ip bgp summary
    ```
-   Two neighbors should be **Established**. `netlab status` (from the `lab/` folder) lists the lab too.
+   Two neighbors should be **Established**.
 
 ### Open the box: what `workshop up` actually did (optional, while it runs)
 
-`workshop up` is a wrapper. Everything it does leaves files you can read, in a second terminal (the **+** in the terminal panel):
+`workshop up` calls netlab (its Python, the same code as the `netlab` command) and waits for BGP. Everything netlab does leaves files you can read, in a second terminal (the **+** in the terminal panel):
 
 ```
 ls lab/
@@ -72,7 +78,7 @@ They match: `lab/baseline/r4.eos` is netlab's rendered configuration, collected 
 
 ## What you have
 
-- **This Codespace:** the lab (netlab defines it, containerlab runs it, NAPALM configures it) and the `workshop` command.
+- **This Codespace:** the lab (netlab defines and configures it, containerlab runs it, NAPALM makes every change after that) and the `workshop` command.
 - **A Forward network on fwd.app:** Forward's mathematical model of your lab, built from what the headless collector
   reads off the routers.
 - **This GitHub repository:** where changes are proposed, predicted and approved.

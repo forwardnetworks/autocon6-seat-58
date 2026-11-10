@@ -4,6 +4,11 @@ provider: clab
 device: eos
 devices:
   eos:
+    # netlab 26.10 "normalizes" a fresh cEOS (shut every interface, set MACs) with an Ansible playbook even when Netmiko
+    # deploys everything else, and Ansible is not installed. The lab never needed it: the initial config sets what it uses.
+    features:
+      initial:
+        normalize: false
     clab:
       image: ceos:4.36.0.1F
       # netlab's default puts Management0 in a "management" VRF (CLAB_MGMT_VRF). On this host
