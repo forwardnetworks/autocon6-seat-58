@@ -1,5 +1,6 @@
 ! Change request: retire the stale BGP advertisements on r4.
 router bgp 65004
    address-family ipv4
+      no network 10.20.20.0/24
       no network 10.20.30.0/24
       no network 10.20.40.0/24
