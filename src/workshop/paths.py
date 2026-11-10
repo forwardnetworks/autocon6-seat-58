@@ -111,13 +111,16 @@ def render(t: Trace) -> list[str]:
     out = term.heading(f"Path {t.src} → {t.dst}  tcp/{t.port}   on {t.label or 'snapshot'} {t.snapshot_id}")
     out.append(f"    → Forward SDK  {t.call}")
     means = OUTCOME_MEANS.get(t.outcome, "")
-    if t.security == "DENIED":
+    if t.security == "DENIED" and t.outcome == "DELIVERED":
         means = "routing would deliver it, but an ACL denies it: Forward still traces the whole route so you can see where it was stopped"
+    elif t.security == "DENIED":
+        means = f"stopped twice over: an ACL denies it, and {means or 'it does not get through'} anyway"
     out += ["", "  " + term.paint(f"{t.outcome}" + (f" · {t.security}" if t.security else "")) + (f"   {means}" if means else ""),
             f"  Forward found {t.paths_found} path(s); the destination is located as {t.dst_location.lower().replace('_', ' ') or 'unknown'}.", ""]
     rows = []
     for i, h in enumerate(t.hops, 1):
-        why = "; ".join([*h.acls, *([f"route {h.route}"] if h.route else [])]) or "–"
+        route = [h.route if h.route.startswith("no route") else f"route {h.route}"] if h.route else []
+        why = "; ".join([*h.acls, *route]) or "–"
         rows.append([str(i), h.device, f"{h.ingress or '·'} → {h.egress or '·'}", _does(h), why])
     out += term.table(["#", "device", "in → out", "what it did", "why: the ACL and route that decided it"], rows, max_width=64)
     if t.return_hops:

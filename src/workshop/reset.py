@@ -3,8 +3,9 @@
 What it does, in order (each printed as it happens):
   1. Git: anything you changed is kept with ``git stash`` (``git stash list`` shows it, ``git stash pop`` brings it back),
      then you are on ``main`` with the latest from GitHub. Nothing is deleted.
-  2. Routers: all four get their baseline configuration again over NAPALM, and r4 loses any extra advertisement.
-     ``--rebuild`` first removes the lab and builds it from scratch (for a router that is broken beyond its config).
+  2. Routers: each gets its baseline configuration merged back over NAPALM, and r4 loses any extra advertisement. A merge
+     puts back what was removed or changed; a line someone *added* by hand on r1-r3 stays. ``--rebuild`` removes the lab and
+     builds it from scratch, which clears everything.
   3. The starting point of exercise N: a fresh baseline from exercise 2 on, and the candidate the exercise starts from.
 Pull requests on GitHub are left alone: close any you no longer want there.
 """
@@ -24,7 +25,7 @@ STARTS: dict[int, dict] = {
     3: {"what": "exercise 3: a fresh baseline, an empty change", "baseline": True, "retire": None},
     4: {"what": "exercise 4: a fresh baseline, and the change that breaks the service (retire all three) to fix",
         "baseline": True, "retire": list(R4_PREFIXES)},
-    5: {"what": "exercise 5: a fresh baseline, and the fixed change (retire the two stale ones). Deploy still needs it merged in a PR",
+    5: {"what": "exercise 5: a fresh baseline, and the fixed change (retire the two stale ones) ready to predict and deploy",
         "baseline": True, "retire": ["10.20.30.0/24", "10.20.40.0/24"]},
 }
 
@@ -42,12 +43,11 @@ def _git(settings: Settings, log, *args: str, check: bool = True) -> subprocess.
 
 
 def write_candidate(settings: Settings, retire: list[str] | None) -> None:
-    """candidate/r4-bgp.eos as main has it, plus ``no network`` for each prefix in ``retire``."""
+    """candidate/r4-bgp.eos: its comment header, the BGP header, and ``no network`` for each prefix in ``retire`` (none: an
+    empty change). Always written, because after exercise 4's merge main's copy already retires the stale two."""
     path = settings.repo_root / "candidate" / "r4-bgp.eos"
-    if not retire:
-        return
     head = [line for line in path.read_text().splitlines() if line.startswith("!")]
-    lines = [*head, candidate.HEADER[0], f"   {candidate.HEADER[1]}", *[f"      no network {p}" for p in R4_PREFIXES if p in retire]]
+    lines = [*head, candidate.HEADER[0], f"   {candidate.HEADER[1]}", *[f"      no network {p}" for p in R4_PREFIXES if p in (retire or [])]]
     path.write_text("\n".join(lines) + "\n")
 
 
@@ -68,16 +68,19 @@ def run(settings: Settings, to: int, log, *, rebuild: bool = False) -> None:
     log("2. Routers: back to their baseline configuration")
     if rebuild:
         log("  --rebuild: removing the lab and building it again (3 to 10 minutes)")
-        lab._run(["netlab", "down", "--cleanup"], lab.lab_dir(settings), log=log)
+        try:
+            lab._run(["netlab", "down", "--cleanup"], lab.lab_dir(settings), log=log)
+        except lab.LabError as exc:
+            log(f"  (netlab down did not finish cleanly: {str(exc).splitlines()[0][:120]}; building it again anyway)")
     lab.up(settings, log)
     restore.run(settings, log)
     log("")
     log("3. The starting point of the exercise")
+    write_candidate(settings, start["retire"])
     if start["retire"]:
-        write_candidate(settings, start["retire"])
-        log(f"  candidate/r4-bgp.eos now retires: {', '.join(start['retire'])}   (not committed: that's your next step)")
+        log(f"  candidate/r4-bgp.eos now retires: {', '.join(start['retire'])}   (not committed)")
     else:
-        log("  candidate/r4-bgp.eos is main's: no change yet")
+        log("  candidate/r4-bgp.eos holds no change yet")
     if start["baseline"]:
         snap, _fp, report = baseline.run(settings, log)
         status = report.status.value if report else "?"
@@ -85,4 +88,7 @@ def run(settings: Settings, to: int, log, *, rebuild: bool = False) -> None:
         if status != "PASS":
             raise ResetError(f"the fresh baseline is {status}, not PASS: run `workshop reset --to {to} --rebuild`, or ask a proctor")
     log("")
+    if to == 5:
+        log("  A fresh baseline makes any earlier prediction stale. To deploy this change now: `workshop predict`, then")
+        log("  `workshop deploy --evidence evidence/evidence.json --confirm <sha7> --no-github` (it prints the sha7 to use).")
     log(f"Ready: you are at the start of exercise {to}. Open docs/exercises/ for it, or the Your lab page.")

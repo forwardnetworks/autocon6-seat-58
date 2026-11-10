@@ -42,7 +42,7 @@ that the change request is actually done?
 
 You'll do the three steps yourself: collect, upload, judge. (`workshop baseline` does all three in one go, if you're behind.)
 
-**Prepare.** This downloads nothing new (the collector came with your Codespace); it writes the collector's device file,
+**Prepare.** The collector normally came with your Codespace (if not, this downloads it); it writes the collector's device file,
 fingerprints the live routers, and prints the note your snapshot must carry:
 ```
 workshop baseline prepare
@@ -51,7 +51,7 @@ source $WORKSHOP_STATE_DIR/$WORKSHOP_LAB_ID/by-hand.sh
 
 **1. Collect** with Forward's headless collector, the same program a customer runs on a jump host:
 ```
-$COLLECTOR createsnapshot --data-sources "$SOURCES" --snapshot-generated-dir "$SNAPDIR" --snapshot-base-name baseline --threads 4 > $S/collect-by-hand.log 2>&1
+(cd $S && INSTALL4J_ADD_VM_PARAMS=-Xmx1g $COLLECTOR createsnapshot --data-sources "$SOURCES" --snapshot-generated-dir "$SNAPDIR" --snapshot-base-name baseline --threads 4 > $S/collect-by-hand.log 2>&1)
 grep -E "finished with|Collected devices|Saved snapshot zip|ERROR" $S/collect-by-hand.log
 ls -la $SNAPDIR
 ```
@@ -109,9 +109,9 @@ S=$WORKSHOP_STATE_DIR/$WORKSHOP_LAB_ID      # your lab's working folder
 jq '.devices' $S/data_sources.json          # what the collector was told to read (the passwords are in another part of this file)
 ls -la $S/snapshots/                         # one ZIP per collection
 Z=$(ls -t $S/snapshots/baseline_*.zip | head -1)
-unzip -l $Z | head -20                       # one folder of command output per router
+unzip -l $Z | head -20                       # one entry per router and command output, named "rN,<what>"
 unzip -p $Z 'r4,configuration.txt' | sed -n '/router bgp/,/^!/p'   # r4's BGP, as Forward received it
-tail -5 $S/collect-baseline.log
+tail -5 $S/collect-baseline.log 2>/dev/null || grep -E "finished with|Collected devices" $S/collect-by-hand.log
 ```
 
 That ZIP is the whole input to Forward's model. Nothing about your network reaches Forward any other way.

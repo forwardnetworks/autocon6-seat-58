@@ -68,7 +68,7 @@ def GATES_PASSED(m: Manifest, check_github: bool) -> list[str]:
     """What ``gates`` has just proved, one line each (``gates`` raises on the first that fails)."""
     out = [f"you confirmed candidate {m.candidate_sha256[:7]}, the one Predict judged",
            f"the prediction was PASS (evidence for lab {m.lab_id}, network {m.network_id})",
-           "candidate/r4-bgp.eos and requirements/candidate.yml are byte for byte what was predicted"]
+           "candidate/r4-bgp.eos holds the same lines that were predicted (comments and spacing aside), and requirements/candidate.yml is byte for byte the same"]
     if check_github and (m.git or {}).get("pr"):
         out.append(f"PR #{m.git['pr']} is merged, and its forward/predict check passed on the commit that was predicted")
     out += [f"your baseline ({m.baseline_snapshot_id}) is still the newest snapshot in Forward",

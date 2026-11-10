@@ -1,9 +1,9 @@
 # If something goes wrong
 
 **Start an exercise again, whatever state you're in:** `workshop reset --to N` (N = 1 to 5). It keeps your uncommitted work in
-`git stash` (`git stash pop` brings it back), switches you to `main` with the latest from GitHub, puts all four routers back to
-their baseline config, and sets up the start of exercise N (a fresh baseline from exercise 2 on; exercise 4 starts with the
-breaking change, exercise 5 with the fixed one). Add `--rebuild` if a router itself is broken: the lab is rebuilt from
+`git stash` (`git stash pop` brings it back), switches you to `main` with the latest from GitHub, merges each router's baseline config
+back (a line you *added* by hand stays: use `--rebuild` for that), and sets up the start of exercise N (a fresh baseline from exercise 2 on; exercise 4 starts with the
+breaking change, exercise 5 with the fixed one, ready for `workshop predict` and a local deploy). Add `--rebuild` if a router itself is broken: the lab is rebuilt from
 scratch (3 to 10 minutes). Your pull requests on GitHub are left alone.
 
 Find the line that looks like yours. Most fixes are one command. Run `workshop status` any time to see where you are in the loop and the next command.

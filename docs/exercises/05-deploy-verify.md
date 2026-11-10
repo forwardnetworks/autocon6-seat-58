@@ -69,6 +69,7 @@ jq '{lines, device_diff, readback_problems}' $S/deploy.json      # what was sent
 jq '.rows[] | {id, predicted, collected}' $S/verify.json          # each requirement: predicted against collected
 docker exec clab-autocon6-client nc -z -w 3 10.20.20.20 8080; echo "exit $?"   # the probe verify ran: 0 means open
 docker exec clab-autocon6-client nc -z -w 3 10.20.20.20 2222; echo "exit $?"   # non-zero: blocked
+```
 
 ### What you just proved
 

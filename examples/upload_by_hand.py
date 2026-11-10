@@ -1,7 +1,7 @@
 """Upload your snapshot to Forward by hand: the two SDK calls behind `workshop baseline`'s upload.
 
     workshop baseline prepare && source $WORKSHOP_STATE_DIR/$WORKSHOP_LAB_ID/by-hand.sh
-    $COLLECTOR createsnapshot --data-sources "$SOURCES" --snapshot-generated-dir "$SNAPDIR" --snapshot-base-name baseline --threads 4 > $S/collect-by-hand.log 2>&1
+    (cd $S && INSTALL4J_ADD_VM_PARAMS=-Xmx1g $COLLECTOR createsnapshot --data-sources "$SOURCES" --snapshot-generated-dir "$SNAPDIR" --snapshot-base-name baseline --threads 4 > $S/collect-by-hand.log 2>&1)
     python examples/upload_by_hand.py
     workshop baseline judge
 """

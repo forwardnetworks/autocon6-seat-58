@@ -654,7 +654,7 @@ def _reset(settings: config.Settings, args) -> int:
 
     banner(settings, "reset")
     log(f"This puts you at the start of {reset.STARTS[args.to]['what']}.")
-    log("Your uncommitted work is kept in `git stash`; routers go back to their baseline config" + (", after rebuilding the lab" if args.rebuild else "") + ".")
+    log("Your uncommitted work is kept in `git stash`; each router gets its baseline config merged back" + (" after the lab is rebuilt" if args.rebuild else " (--rebuild also clears lines added by hand)") + ".")
     if not args.yes:
         if not sys.stdin.isatty():
             log("Add --yes to run it without a question.")

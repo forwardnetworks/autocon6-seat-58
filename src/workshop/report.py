@@ -265,7 +265,7 @@ def by_hand_lines(env: dict[str, str]) -> list[str]:
     return ["", "Ready. Now take the baseline yourself, in three steps (the variables are in by-hand.sh):", "",
             f"  source {env['S']}/by-hand.sh", "",
             "  1. Collect: run Forward's headless collector against your four routers (about 15 seconds):",
-            '       $COLLECTOR createsnapshot --data-sources "$SOURCES" --snapshot-generated-dir "$SNAPDIR" --snapshot-base-name baseline --threads 4 > $S/collect-by-hand.log 2>&1',
+            '       (cd $S && INSTALL4J_ADD_VM_PARAMS=-Xmx1g $COLLECTOR createsnapshot --data-sources "$SOURCES" --snapshot-generated-dir "$SNAPDIR" --snapshot-base-name baseline --threads 4 > $S/collect-by-hand.log 2>&1)',
             '       grep -E "finished with|Collected devices|Saved snapshot zip|ERROR" $S/collect-by-hand.log',
             "     It logs in over SSH, runs the show commands Forward needs, and writes one ZIP (ls -la $SNAPDIR). The full log is",
             "     about 1,600 lines; the grep shows each router finishing, the devices collected, and where the ZIP went.", "",
@@ -273,7 +273,7 @@ def by_hand_lines(env: dict[str, str]) -> list[str]:
             f"       NOTE={env['NOTE']}",
             "     The code is in docs/exercises/01-baseline.md ('Take the baseline by hand'): snapshots.upload, then wait_until_processed.", "",
             "  3. Judge it:  workshop baseline judge",
-            "     It checks the snapshot is a baseline of this lab, that Forward holds exactly what you collected, and that the",
+            "     It checks the snapshot is a baseline of this lab, that Forward's copy of the four configs matches the note, and that the",
             "     routers haven't changed since; then it judges the requirements. A wrong note or a stale ZIP is refused, with the reason.", "",
             "Stuck? `workshop baseline` does all three in one go."]
 
