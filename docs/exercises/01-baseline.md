@@ -51,9 +51,13 @@ source $WORKSHOP_STATE_DIR/$WORKSHOP_LAB_ID/by-hand.sh
 
 **1. Collect** with Forward's headless collector, the same program a customer runs on a jump host:
 ```
-$COLLECTOR createsnapshot --data-sources "$SOURCES" --snapshot-generated-dir "$SNAPDIR" --snapshot-base-name baseline --threads 4
+$COLLECTOR createsnapshot --data-sources "$SOURCES" --snapshot-generated-dir "$SNAPDIR" --snapshot-base-name baseline --threads 4 > $S/collect-by-hand.log 2>&1
+grep -E "finished with|Collected devices|Saved snapshot zip|ERROR" $S/collect-by-hand.log
 ls -la $SNAPDIR
 ```
+The collector logs every detail (about 1,600 lines: Java, SSH, each command): the full log is in `$S/collect-by-hand.log`. The
+`grep` picks out the story: each router's `Pipeline execution finished with SUCCESS`, `Collected devices: [r1, r2, r3, r4]`,
+and where it saved the ZIP. Open the log and search for `show` to see the commands it ran.
 
 **2. Upload** the ZIP to your Forward network with the Python SDK, and wait while Forward builds its model. Open
 `examples/upload_by_hand.py` first: it is two SDK calls, `snapshots.upload` (with your note) and `wait_until_processed`.
