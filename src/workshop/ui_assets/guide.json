@@ -14,17 +14,17 @@
     "Network",
     "Executor"
    ],
-   "what": "Nothing starts until you press the button. netlab reads lab/topology.yml (four routers, a client and a service, and their links) and has containerlab start them, without configuring them. Then NAPALM writes each router's baseline configuration over eAPI, so there is exactly one way a change gets onto a router. You can watch the lab in the Containerlab panel in the left bar of VS Code: open a terminal on any router or on the client and the service.",
+   "what": "Nothing starts until you press the button. netlab reads lab/topology.yml (four routers, a client and a service, and their links), has containerlab start them, then configures each router over SSH with Netmiko: interfaces, BGP, and the workshop's own pieces from lab/*.j2. That is the lab's starting point. After that, every change goes through NAPALM, so there is exactly one way a change gets onto a running router. You can watch the lab in the Containerlab panel in the left bar of VS Code, or with `netlab status` in lab/.",
    "before": [
     {
-     "q": "netlab builds the topology. What puts the baseline configuration on the routers?",
+     "q": "netlab builds the topology. What gives the routers their starting configuration?",
      "options": [
-      "netlab's own config push",
       "NAPALM, over eAPI",
+      "netlab itself, with Netmiko, when it builds them",
       "The Forward collector"
      ],
      "answer": 1,
-     "why": "NAPALM. Every change in this workshop, baseline, candidate and restore, takes the same path, which is what lets Deploy check it. The collector only reads."
+     "why": "netlab, once, as it builds the lab: lab/topology.yml and the templates in lab/*.j2. The collector only reads. NAPALM takes over for every change after that."
     },
     {
      "q": "netlab configured your routers when it built them. What configures them after that?",
@@ -53,7 +53,7 @@
     {
      "step": "up",
      "label": "Start the lab",
-     "note": "Takes 2 to 3 minutes. You will see netlab start the six nodes, then the baseline go on. The machine will be busy; that is normal.",
+     "note": "Takes 3 to 10 minutes. You will see netlab start the six nodes, then configure the routers. The machine will be busy; that is normal.",
      "cmd": "workshop up"
     },
     {
@@ -63,7 +63,7 @@
      "cmd": "workshop doctor"
     }
    ],
-   "catchup": "Starts the lab if it isn't running and applies the baseline configuration. Nothing else changes.",
+   "catchup": "Starts the lab if it isn't running (netlab builds and configures it). A running lab is left as it is.",
    "why": "Every later step depends on starting from a state you can name and rebuild. A lab of your own, with its own Forward network, means you can break things on purpose today."
   },
   "baseline": {
@@ -433,10 +433,28 @@
      "cmd": "workshop restore"
     },
     {
-     "step": "baseline",
-     "label": "Take a new baseline",
-     "note": "Do this after every restore.",
-     "cmd": "workshop baseline"
+     "step": "baseline collect",
+     "label": "Then 1. Collect",
+     "note": "A fresh baseline, one step at a time: collect, upload, wait, check.",
+     "cmd": "workshop baseline collect"
+    },
+    {
+     "step": "baseline upload",
+     "label": "2. Upload",
+     "note": "",
+     "cmd": "workshop baseline upload"
+    },
+    {
+     "step": "baseline wait",
+     "label": "3. Wait",
+     "note": "",
+     "cmd": "workshop baseline wait"
+    },
+    {
+     "step": "baseline check",
+     "label": "4. Check",
+     "note": "",
+     "cmd": "workshop baseline check"
     }
    ],
    "catchup": "Makes sure the lab is up, puts r4's advertisements back to the baseline and takes a fresh baseline. It clears your candidate, ready for another go.",

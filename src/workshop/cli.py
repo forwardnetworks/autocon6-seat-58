@@ -480,7 +480,9 @@ def _deploy(settings: config.Settings, args) -> int:
         if step == "render":
             from workshop.evidence import Manifest
 
-            for line in render.lines_for(render.build(settings, Manifest.read(evidence), log)):
+            with deploy.lab_lock(settings):  # its dry run opens a config session on r4: never alongside an apply
+                rendered = render.build(settings, Manifest.read(evidence), log)
+            for line in render.lines_for(rendered):
                 log(line)
             return 0
         if step == "apply":
@@ -516,7 +518,7 @@ def _verify(settings: config.Settings, args) -> int:
             log("nothing deployed yet: run workshop deploy first (or pass --evidence)")
             return EXIT["ERROR"]
         evidence = json.loads(deployed.read_text())["evidence"]
-    from workshop import steps
+    from workshop import show, steps
 
     step = getattr(args, "step", None)
     try:
@@ -536,7 +538,16 @@ def _verify(settings: config.Settings, args) -> int:
             return 0
         if step == "compare":
             got = steps.processed_snapshot(settings, "post")
-            probes = steps.load(settings, "probes", "workshop verify probe")["probes"]
+            probed = steps.load(settings, "probes", "workshop verify probe")
+            if probed.get("evidence") != str(evidence):
+                log("those probes were for a different deploy: run `workshop verify probe` again")
+                return EXIT["ERROR"]
+            log("checking the collection is of the network as it is now ...")
+            show.napalm(log, "r1-4", "cli('show running-config')   hashed and compared with the post-change collection's fingerprint")
+            if steps.live_fingerprint(settings) != got["fingerprint"]:
+                log("the routers changed after `workshop verify collect`: run `workshop verify probe`, `collect`, `upload` and `wait` again, then compare")
+                return EXIT["ERROR"]
+            probes = probed["probes"]
             result = verify.compare(settings, Path(evidence), got["snapshot"], got["fingerprint"], probes, log)
         else:
             result = verify.run(settings, Path(evidence), log)
@@ -578,19 +589,11 @@ def _snapshot_for(settings: config.Settings, which: str, evidence: str) -> str:
     if which.isdigit():
         return which
     if which == "baseline":
-        # the newest of: the checked baseline (baseline.json), and a baseline uploaded and processed but not checked yet
-        # (`workshop baseline wait` done): you can explore Forward's model before you judge it
-        found = []
-        for name, key in (("baseline.json", "snapshot"), ("steps/upload-baseline.json", "snapshot")):
-            path = settings.state_dir / name
-            try:
-                data = json.loads(path.read_text())
-            except (OSError, ValueError):
-                continue
-            if name == "baseline.json" or data.get("processed"):
-                found.append((path.stat().st_mtime, str(data[key])))
+        from workshop import steps
+
+        found = steps.baseline_snapshot(settings)
         if found:
-            return max(found)[1]
+            return found
         raise LookupError("no baseline in Forward yet: run `workshop baseline collect`, `upload` and `wait` first")
     if which == "predicted":
         path = Path(evidence)

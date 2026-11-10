@@ -95,6 +95,26 @@ def processed_snapshot(settings: Settings, kind: str) -> dict[str, Any]:
     return got
 
 
+def baseline_snapshot(settings: Settings) -> str:
+    """The baseline to look at: the newest of the checked one (baseline.json) and one uploaded and processed but not checked
+    yet (after `workshop baseline wait`), so you can explore Forward's model before you judge it. "" if there is none."""
+    found = []
+    for name in ("baseline.json", "steps/upload-baseline.json"):
+        path = settings.state_dir / name
+        try:
+            data = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if data.get("snapshot") and (name == "baseline.json" or data.get("processed")):
+            found.append((path.stat().st_mtime, str(data["snapshot"])))
+    return max(found)[1] if found else ""
+
+
+def forget(settings: Settings, *names: str) -> None:
+    for name in names:
+        settings.state(f"steps/{name}.json").unlink(missing_ok=True)
+
+
 def live_fingerprint(settings: Settings) -> str:
     from workshop import lab
 

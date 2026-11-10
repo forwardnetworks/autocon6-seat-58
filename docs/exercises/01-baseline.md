@@ -47,8 +47,8 @@ logs in to r1-r4 over SSH, runs `show` commands, and writes one snapshot ZIP:
 ```
 workshop baseline collect
 ```
-It also hashes the four running configs over NAPALM, before and after, so a router that changed mid-collection is
-caught. The evidence: the ZIP's path and size, and the fingerprint.
+It also hashes the four running configs over NAPALM before it collects, and the configs in the ZIP after, so a router
+that changed mid-collection is caught. The evidence: the ZIP's path and size, and the fingerprint.
 
 **2. Upload** the ZIP to your Forward network with the Python SDK (`snapshots.upload`). The note it carries,
 `autocon6:baseline lab=… fp=…`, is how every later step knows which snapshot is your baseline and what it holds:

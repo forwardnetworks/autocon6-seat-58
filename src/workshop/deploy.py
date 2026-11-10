@@ -111,6 +111,8 @@ def apply(settings: Settings, evidence: Path, confirm: str, log: Callable[[str],
             "readback_problems": None,
         }
         settings.state("deploy.json").write_text(json.dumps(record, indent=2) + "\n")
+        for name in ("steps/collect-post.json", "steps/upload-post.json", "steps/probes.json", "verify.json"):
+            settings.state(name).unlink(missing_ok=True)  # a new deploy: an earlier verify's collection says nothing about it
         return record
 
 

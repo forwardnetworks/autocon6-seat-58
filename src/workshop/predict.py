@@ -110,6 +110,8 @@ def prepare(settings: Settings, inputs: Inputs, log=None) -> Manifest:
         return _stop(m, "INCONCLUSIVE", f"Forward did not finish in time: {exc}")
     except ForwardError as exc:
         return _stop(m, "ERROR", f"Forward error: {type(exc).__name__}: {str(exc)[:300]}")
+    except (ValueError, KeyError, OSError, RuntimeError) as exc:  # anything else is ERROR with evidence, never a crash (a crash exits 1: FAIL)
+        return _stop(m, "ERROR", f"{type(exc).__name__}: {str(exc)[:300]}")
     if isinstance(made, Prediction):
         m.change_set_id, m.predicted_snapshot_id = made.change_set_id, made.snapshot_id
     else:
@@ -131,6 +133,8 @@ def predict(settings: Settings, m: Manifest, log=None) -> Manifest:
         return _stop(m, "INCONCLUSIVE", f"Forward did not finish in time: {exc}")
     except ForwardError as exc:
         return _stop(m, "ERROR", f"Forward error: {type(exc).__name__}: {str(exc)[:300]}")
+    except (ValueError, KeyError, OSError, RuntimeError) as exc:  # anything else is ERROR with evidence, never a crash (a crash exits 1: FAIL)
+        return _stop(m, "ERROR", f"{type(exc).__name__}: {str(exc)[:300]}")
     if prediction.parent_snapshot_id not in ("", "None", m.baseline_snapshot_id):
         return _stop(m, "ERROR", f"Predicted snapshot {prediction.snapshot_id} is based on {prediction.parent_snapshot_id}, not the baseline {m.baseline_snapshot_id}.")
     m.predicted_snapshot_id = prediction.snapshot_id
@@ -154,6 +158,8 @@ def judge(settings: Settings, m: Manifest, requirements_path: Path, log=None) ->
         return _stop(m, "INCONCLUSIVE", f"Forward did not finish in time: {exc}")
     except ForwardError as exc:
         return _stop(m, "ERROR", f"Forward error: {type(exc).__name__}: {str(exc)[:300]}")
+    except (ValueError, KeyError, OSError, RuntimeError) as exc:  # anything else is ERROR with evidence, never a crash (a crash exits 1: FAIL)
+        return _stop(m, "ERROR", f"{type(exc).__name__}: {str(exc)[:300]}")
     m.results = [r.to_json() for r in report.results]
     m.status = report.status.value
     if report.status is Status.PASS:

@@ -53,7 +53,7 @@ MAX_ARTIFACT = 60_000
 # repo-relative; "state:" paths live in the seat's state folder; "forward:<which>" is Forward's raw answers.
 ARTIFACTS: dict[str, list[tuple[str, str, str, bool]]] = {
     "lab": [("The topology netlab builds: four routers, a client, a service and their links", "lab/topology.yml", "yaml", True),
-            ("r4's baseline configuration, as NAPALM applies it", "lab/baseline/r4.eos", "text", False)],
+            ("r4's baseline configuration, as netlab deploys it", "lab/baseline/r4.eos", "text", False)],
     "baseline": [("What must stay true: the baseline requirements", "requirements/baseline.yml", "yaml", True),
                  ("The NQE query that finds stale advertisements", "nqe/stale_bgp_advertisements.nqe", "text", False),
                  ("What Forward said about the baseline (structured)", "forward:baseline", "json", False)],

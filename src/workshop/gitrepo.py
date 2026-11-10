@@ -93,10 +93,10 @@ def changed_against_origin_main(root: Path, paths: tuple[str, ...]) -> list[str]
 def commit_only(root: Path, path: str, message: str) -> bool:
     """Stage exactly ``path`` and commit it; False when it has no change to commit."""
     r = _repo(root)
-    _do("staging the candidate", r.index.add, [path])
-    if not r.index.diff("HEAD"):
+    _do("staging the candidate", r.git.add, "--", path)
+    if not r.git.diff("--cached", "--name-only", "HEAD", "--", path).strip():
         return False
-    _do("committing", r.index.commit, message)
+    _do("committing", r.git.commit, "-m", message, "--", path)  # the pathspec: nothing else staged rides along
     return True
 
 

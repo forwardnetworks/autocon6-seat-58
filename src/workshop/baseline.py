@@ -28,7 +28,7 @@ class BaselineError(RuntimeError):
 
 def forget_previous_loop(settings: Settings) -> None:
     """A fresh baseline starts a new loop: the last deploy and verify results no longer describe the lab."""
-    for name in ("deploy.json", "verify.json"):
+    for name in ("deploy.json", "verify.json", "steps/collect-post.json", "steps/upload-post.json", "steps/probes.json"):
         settings.state(name).unlink(missing_ok=True)
 
 

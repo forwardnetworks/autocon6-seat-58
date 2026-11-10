@@ -174,7 +174,7 @@ MATCH means every one agrees and every probe agrees. Then Forward's routing diff
 1. **napalm** `show running-config section router bgp` on r4: what it advertises now.
 2. **napalm**: `lab/restore/r4-bgp.eos`, plus `no network` for anything extra, applied as above.
 
-No prediction and no gate: this is the break-glass path. That is why a new `workshop baseline` must follow.
+No prediction and no gate: this is the break-glass path. That is why the baseline steps must follow (`workshop baseline collect` first).
 
 ### `workshop reset --to N`: start exercise N again
 The one command that does several things, because it's for getting unstuck:
@@ -183,7 +183,7 @@ The one command that does several things, because it's for getting unstuck:
 2. A netlab redeploy: **netlab** `down --cleanup`, then `workshop up` (netlab builds and configures the lab again). Every
    router is exactly as netlab first configured it, whatever was changed since.
 3. Writes the candidate the exercise starts from (empty; the breaking change for 4; the fixed change for 5).
-4. From exercise 2 on: `workshop baseline`.
+4. From exercise 2 on: a fresh baseline (the four baseline steps, in a row).
 
 ---
 
