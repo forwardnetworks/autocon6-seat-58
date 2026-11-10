@@ -62,8 +62,8 @@ def build(settings: Settings, m: Manifest, log=None) -> Rendered:
         commands = (held.commands if held else "") or ""
         show.sdk(log, f'devices.file("r4", "configuration.txt", snapshot_id="{m.baseline_snapshot_id}")   r4 in Forward\'s model, before')
         before = fwd.c.devices.file(candidate.DEVICE, "configuration.txt", snapshot_id=m.baseline_snapshot_id)
-        show.sdk(log, f'committed_device_config("{head.id}", "r4")   r4 in Forward\'s model, after the change set')
-        after = handle.committed_device_config(str(head.id), candidate.DEVICE)
+        show.sdk(log, f'committed_device_config("{head.commit_id}", "r4")   r4 in Forward\'s model, after the change set')
+        after = handle.committed_device_config(str(head.commit_id), candidate.DEVICE)
     forward_diff = list(difflib.unified_diff(_section(before), _section(after), "r4 in Forward (baseline)", "r4 in Forward (with the change)", lineterm="", n=1))
     show.napalm(log, candidate.DEVICE, "load_merge_candidate · compare_config · discard_config   a dry run: r4's own diff, then thrown away")
     router = executor.preview(settings, candidate.DEVICE, lab.mgmt_ips(settings)[candidate.DEVICE], lines)
