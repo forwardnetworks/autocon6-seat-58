@@ -74,7 +74,8 @@ def _route_for(rows: list[dict[str, Any]], device: str, dst: str) -> str:
         return f"no route to {dst}"
     net, r = best
     via = r.get("via") or r.get("interface") or ""
-    return f"{net} {str(r.get('protocol', '')).lower()}" + (f" via {via}" if via else "")
+    proto = str(r.get("protocol", "")).lower().replace("direct_connected", "connected").replace("_", " ")
+    return f"{net} {proto}" + (f" via {via}" if via else "")
 
 
 def trace(client, snapshot_id: str, *, src: str, dst: str, port: int, label: str = "", proto: int = 6) -> Trace:

@@ -38,11 +38,37 @@ cat nqe/stale_bgp_advertisements.nqe
 Which test would catch the service becoming unreachable? Which would catch 2222 becoming reachable? Which one checks
 that the change request is actually done?
 
-### Take the baseline (10 min)
+### Take the baseline by hand (15 min)
 
+You'll do the three steps yourself: collect, upload, judge. (`workshop baseline` does all three in one go, if you're behind.)
+
+**Prepare.** This downloads nothing new (the collector came with your Codespace); it writes the collector's device file,
+fingerprints the live routers, and prints the note your snapshot must carry:
 ```
-workshop baseline
+workshop baseline prepare
+source $WORKSHOP_STATE_DIR/$WORKSHOP_LAB_ID/by-hand.sh
 ```
+
+**1. Collect** with Forward's headless collector, the same program a customer runs on a jump host:
+```
+$COLLECTOR createsnapshot --data-sources "$SOURCES" --snapshot-generated-dir "$SNAPDIR" --snapshot-base-name baseline --threads 4
+ls -la $SNAPDIR
+```
+
+**2. Upload** the ZIP to your Forward network with the Python SDK, and wait while Forward builds its model. Open
+`examples/upload_by_hand.py` first: it is two SDK calls, `snapshots.upload` (with your note) and `wait_until_processed`.
+```
+python examples/upload_by_hand.py
+```
+If the wait runs out, Forward is still working on it: don't upload again, just go to step 3 in a minute.
+
+**3. Judge** it:
+```
+workshop baseline judge
+```
+Before any requirement it checks three things, and prints each: the snapshot's note says *baseline* and *your lab*;
+Forward's copy of the configs hashes to the note's fingerprint (the ZIP is what the note claims); and the live routers still
+hash to it (nothing changed since you collected). Then it judges the requirements.
 Three different things happen, in order, and the output shows each one:
 
 1. **Collect.** Forward's headless collector (a program in this Codespace, not on Forward's servers) logs in to the four
@@ -56,7 +82,19 @@ Three different things happen, in order, and the output shows each one:
 
 Every line should say **PASS**.
 
-Read the output top to bottom. It starts with what Forward modelled (how many devices, running what). Then each requirement
+**Drill down into one path.** A requirement says PASS; this shows you why, hop by hop, with the ACL and the route each
+router used:
+```
+workshop path               # the application, TCP 8080
+workshop path --port 2222   # the blocked port: Forward says DELIVERED but DENIED. Read the r1 row to see why
+```
+For TCP 2222 Forward reports two separate answers: routing would deliver the packet, and security denies it at r1. Forward
+traces the whole route anyway, so you can see where it would have gone. That's why `MGMT-DENY` checks for a deny *at r1*,
+not just "no path".
+
+And run the hygiene query yourself, as a table: `workshop nqe nqe/stale_bgp_advertisements.nqe`.
+
+Read the baseline output top to bottom. It starts with what Forward modelled (how many devices, running what). Then each requirement
 is a block: its **name and meaning**, **must be** (what had to be true), and **Forward saw** (what Forward's model shows,
 with the path traffic takes where there is one). It ends with **What this means** and the next step.
 

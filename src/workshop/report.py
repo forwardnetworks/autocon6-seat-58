@@ -49,10 +49,19 @@ def requirement_lines(rows: list[dict[str, Any]], *, compare: bool = False) -> l
 def _asked(r: dict[str, Any]) -> str:
     ev = r.get("evidence") or {}
     if ev.get("intent"):
-        return f"path search ({ev['intent'].replace('PREFER_', '').lower()})"
+        return {"PREFER_VIOLATIONS": "path search: any path that fails?", "PREFER_DELIVERED": "path search: the delivered path"}.get(ev["intent"], "path search")
     if "rows" in ev:
         return f"NQE query ({len(ev['rows'] or [])} rows)"
     return "–"
+
+
+def _answer(r: dict[str, Any]) -> str:
+    """Forward's answer in a few words: for an NQE requirement, the rows themselves rather than their JSON."""
+    rows = (r.get("evidence") or {}).get("rows")
+    if isinstance(rows, list) and "row(s) from" in str(r.get("expected", "")):
+        cells = ["/".join(str(v) for v in list(dict(row).values())[:2] if v not in (None, "")) for row in rows[:3]]
+        return f"{len(rows)} row(s)" + (": " + ", ".join(cells) if cells else "") + (" …" if len(rows) > 3 else "")
+    return str(r.get("observed", ""))
 
 
 def requirement_table(rows: list[dict[str, Any]], *, compare: bool = False, on: str = "this snapshot") -> list[str]:
@@ -65,7 +74,7 @@ def requirement_table(rows: list[dict[str, Any]], *, compare: bool = False, on: 
                "change; 'collected' is the same question asked again of a fresh collection of the real network. MATCH needs every row "
                "'as predicted' and the live probes to agree.")
     else:
-        body = [[str(r.get("status", "")), r.get("id", ""), _asked(r), str(r.get("expected", "")), str(r.get("observed", ""))] for r in rows]
+        body = [[str(r.get("status", "")), r.get("id", ""), _asked(r), str(r.get("expected", "")), _answer(r)] for r in rows]
         out = term.table(["verdict", "requirement", "asked Forward", "must be", "Forward answered"], body, max_width=46)
         how = (f"one row per requirement, judged on {on}. 'asked Forward' is the question sent through the SDK: a path search for "
                "a flow, an NQE query for routes and hygiene. 'must be' comes from the YAML; 'Forward answered' is what came back. "
@@ -103,7 +112,8 @@ def service_routes(client, snapshot_id: str) -> list[str]:
         t = data.routes(client, snapshot_id, prefix="10.20.20.0/24")
     except Exception:  # noqa: BLE001 - display only
         return ["  (the routing tables are not available just now: workshop data routes --prefix 10.20.20.0/24)"]
-    rows = [[r.get("device", ""), r.get("prefix", ""), str(r.get("protocol", "")).lower(), r.get("via") or r.get("interface") or ""] for r in t.rows]
+    rows = [[r.get("device", ""), r.get("prefix", ""), str(r.get("protocol", "")).lower().replace("direct_connected", "connected").replace("_", " "),
+             r.get("via") or r.get("interface") or ""] for r in t.rows]
     return ([f"  {t.summary}"] + term.table(["device", "prefix", "learned by", "next hop"], rows)
             + term.how_to_read("this is how every router reaches the service's subnet today. r4 has it connected and advertises it "
                                "with a BGP network statement; r2 and r3 learn it from r4; r1 prefers the path through r2. "

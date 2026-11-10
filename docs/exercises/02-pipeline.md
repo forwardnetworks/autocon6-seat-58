@@ -78,6 +78,15 @@ workshop predict
 cat evidence/evidence.json
 ```
 
+### Predict by hand (5 min)
+
+The check is a CI job calling the SDK. Make the same calls yourself, one at a time, and watch each one:
+```
+python examples/predict_by_hand.py
+```
+Read the script first: create a change set on your baseline, `set_commands` for r4, `commit`, `predict`, wait, then trace
+the application flow on both the baseline and the predicted network. It's for learning: the PR check is still the gate.
+
 ### Open the box: the evidence (5 min)
 
 The verdict is a file, and everything after this step trusts it. Read it:

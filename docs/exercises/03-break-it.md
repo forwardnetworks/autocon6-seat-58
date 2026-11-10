@@ -55,6 +55,16 @@ A red check says a requirement failed. Forward can also show you **what the chan
   You should see something like "3 routes removed on r1, r2, r3 for 10.20.20.0/24". Look at the **before** column: those are the routes r1 uses to reach the service today. The change is on r4, and the damage is on three routers.
 - Narrow it: `workshop data diff --device r1`, or `workshop data routes --prefix 10.20.20.0/24` for the baseline's view. Add `--json` for exactly what Forward returned.
 
+### Follow the packet (5 min)
+
+After a local `workshop predict` of this change, trace the application on both networks and compare:
+```
+workshop path --compare predicted
+```
+The baseline table shows r1 → r2 → r4 with the route each router used. The predicted one stops early, and **What changed**
+names the router whose route disappeared and what it uses instead. Then try `workshop path --snapshot predicted --port 2222`:
+is the management port still blocked when the service is gone?
+
 ### Investigate (20 min)
 
 Work out what changed and why, using as many of these as you like:

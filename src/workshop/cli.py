@@ -720,7 +720,7 @@ def _nqe(settings: config.Settings, args) -> int:
     log(f"{len(rows)} row(s) on {args.snapshot} snapshot {snap}")
     if rows:
         cols = list(rows[0])
-        for line in term.table(cols, [[("" if r.get(c) is None else r.get(c)) for c in cols] for r in rows[:60]], max_width=60):
+        for line in term.table(cols, [[("" if r.get(c) is None else r.get(c)) for c in cols] for r in rows[:60]], max_width=90):
             log(line)
         if len(rows) > 60:
             log(f"... and {len(rows) - 60} more")
